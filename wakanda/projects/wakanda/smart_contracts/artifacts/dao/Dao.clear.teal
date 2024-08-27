@@ -1,0 +1,7 @@
+#pragma version 10
+
+smart_contracts.dao.contract.Dao.clear_state_program:
+    // smart_contracts/dao/contract.py:4
+    // class Dao(ARC4Contract):
+    int 1
+    return

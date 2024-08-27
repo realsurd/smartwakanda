@@ -1,0 +1,273 @@
+#pragma version 10
+
+smart_contracts.dao.contract.Dao.approval_program:
+    // smart_contracts/dao/contract.py:4
+    // class Dao(ARC4Contract):
+    method "create_proposal(string,string,uint64)void"
+    method "vote(uint64)void"
+    method "delete_proposal()void"
+    txna ApplicationArgs 0
+    match main_create_proposal_route@1 main_vote_route@2 main_delete_proposal_route@3
+    err // reject transaction
+
+main_create_proposal_route@1:
+    // smart_contracts/dao/contract.py:21
+    // @arc4.abimethod(allow_actions=["NoOp"], create="require")
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    !
+    assert // is creating
+    // smart_contracts/dao/contract.py:4
+    // class Dao(ARC4Contract):
+    txna ApplicationArgs 1
+    extract 2 0
+    txna ApplicationArgs 2
+    extract 2 0
+    txna ApplicationArgs 3
+    btoi
+    // smart_contracts/dao/contract.py:21
+    // @arc4.abimethod(allow_actions=["NoOp"], create="require")
+    callsub create_proposal
+    int 1
+    return
+
+main_vote_route@2:
+    // smart_contracts/dao/contract.py:39
+    // @arc4.abimethod
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    // smart_contracts/dao/contract.py:4
+    // class Dao(ARC4Contract):
+    txna ApplicationArgs 1
+    btoi
+    // smart_contracts/dao/contract.py:39
+    // @arc4.abimethod
+    callsub vote
+    int 1
+    return
+
+main_delete_proposal_route@3:
+    // smart_contracts/dao/contract.py:57
+    // @arc4.abimethod
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    callsub delete_proposal
+    int 1
+    return
+
+
+// smart_contracts.dao.contract.Dao.create_proposal(name: bytes, description: bytes, end_time: uint64) -> void:
+create_proposal:
+    // smart_contracts/dao/contract.py:21-24
+    // @arc4.abimethod(allow_actions=["NoOp"], create="require")
+    // def create_proposal(
+    //     self, name: String, description: String, end_time: UInt64
+    // ) -> None:
+    proto 3 0
+    // smart_contracts/dao/contract.py:26
+    // Txn.sender
+    txn Sender
+    // smart_contracts/dao/contract.py:25-27
+    // assert self.has_wakanda_asset(
+    //     Txn.sender
+    // ), "You must hold one of the required assets to vote"
+    callsub has_wakanda_asset
+    assert // You must hold one of the required assets to vote
+    // smart_contracts/dao/contract.py:5
+    // name: String
+    byte "name"
+    // smart_contracts/dao/contract.py:28
+    // self.name = name
+    frame_dig -3
+    app_global_put
+    // smart_contracts/dao/contract.py:6
+    // description: String
+    byte "description"
+    // smart_contracts/dao/contract.py:29
+    // self.description = description
+    frame_dig -2
+    app_global_put
+    // smart_contracts/dao/contract.py:7
+    // end_time: UInt64
+    byte "end_time"
+    // smart_contracts/dao/contract.py:30
+    // self.end_time = end_time
+    frame_dig -1
+    app_global_put
+    // smart_contracts/dao/contract.py:8
+    // yes_count: UInt64
+    byte "yes_count"
+    // smart_contracts/dao/contract.py:31
+    // self.yes_count = UInt64(0)
+    int 0
+    app_global_put
+    // smart_contracts/dao/contract.py:9
+    // no_count: UInt64
+    byte "no_count"
+    // smart_contracts/dao/contract.py:32
+    // self.no_count = UInt64(0)
+    int 0
+    app_global_put
+    // smart_contracts/dao/contract.py:10
+    // asset_ids: UInt64
+    byte "asset_ids"
+    // smart_contracts/dao/contract.py:33
+    // self.asset_ids = UInt64(2033034056)
+    int 2033034056
+    app_global_put
+    retsub
+
+
+// smart_contracts.dao.contract.Dao.has_wakanda_asset(sender: bytes) -> uint64:
+has_wakanda_asset:
+    // smart_contracts/dao/contract.py:12-13
+    // @subroutine
+    // def has_wakanda_asset(self, sender: Account) -> bool:
+    proto 1 1
+    // smart_contracts/dao/contract.py:14
+    // has_asset = False
+    int 0
+    // smart_contracts/dao/contract.py:15
+    // asset = Asset(self.asset_ids)
+    dup
+    // smart_contracts/dao/contract.py:10
+    // asset_ids: UInt64
+    byte "asset_ids"
+    // smart_contracts/dao/contract.py:15
+    // asset = Asset(self.asset_ids)
+    app_global_get_ex
+    assert // check self.asset_ids exists
+    // smart_contracts/dao/contract.py:16
+    // if asset.balance(sender) > 0:
+    frame_dig -1
+    swap
+    asset_holding_get AssetBalance
+    assert // account opted into asset
+    bz has_wakanda_asset_after_if_else@2
+    // smart_contracts/dao/contract.py:17
+    // has_asset = True
+    int 1
+    frame_bury 0
+
+has_wakanda_asset_after_if_else@2:
+    // smart_contracts/dao/contract.py:19
+    // return has_asset
+    frame_dig 0
+    swap
+    retsub
+
+
+// smart_contracts.dao.contract.Dao.vote(choice: uint64) -> void:
+vote:
+    // smart_contracts/dao/contract.py:39-40
+    // @arc4.abimethod
+    // def vote(self, choice: UInt64) -> None:
+    proto 1 0
+    // smart_contracts/dao/contract.py:41
+    // assert Global.latest_timestamp < self.end_time, "Voting period has ended"
+    global LatestTimestamp
+    int 0
+    // smart_contracts/dao/contract.py:7
+    // end_time: UInt64
+    byte "end_time"
+    // smart_contracts/dao/contract.py:41
+    // assert Global.latest_timestamp < self.end_time, "Voting period has ended"
+    app_global_get_ex
+    assert // check self.end_time exists
+    <
+    assert // Voting period has ended
+    // smart_contracts/dao/contract.py:48
+    // Txn.sender
+    txn Sender
+    // smart_contracts/dao/contract.py:46-49
+    // # Check if the sender holds any of the specified assets
+    // assert self.has_wakanda_asset(
+    //     Txn.sender
+    // ), "You must hold one of the required assets to vote"
+    callsub has_wakanda_asset
+    assert // You must hold one of the required assets to vote
+    // smart_contracts/dao/contract.py:51-52
+    // # Count the vote based on the choice
+    // if choice == 1:
+    frame_dig -1
+    int 1
+    ==
+    bz vote_else_body@2
+    // smart_contracts/dao/contract.py:53
+    // self.yes_count += 1
+    int 0
+    // smart_contracts/dao/contract.py:8
+    // yes_count: UInt64
+    byte "yes_count"
+    // smart_contracts/dao/contract.py:53
+    // self.yes_count += 1
+    app_global_get_ex
+    assert // check self.yes_count exists
+    int 1
+    +
+    // smart_contracts/dao/contract.py:8
+    // yes_count: UInt64
+    byte "yes_count"
+    // smart_contracts/dao/contract.py:53
+    // self.yes_count += 1
+    swap
+    app_global_put
+    b vote_after_if_else@3
+
+vote_else_body@2:
+    // smart_contracts/dao/contract.py:55
+    // self.no_count += 1
+    int 0
+    // smart_contracts/dao/contract.py:9
+    // no_count: UInt64
+    byte "no_count"
+    // smart_contracts/dao/contract.py:55
+    // self.no_count += 1
+    app_global_get_ex
+    assert // check self.no_count exists
+    int 1
+    +
+    // smart_contracts/dao/contract.py:9
+    // no_count: UInt64
+    byte "no_count"
+    // smart_contracts/dao/contract.py:55
+    // self.no_count += 1
+    swap
+    app_global_put
+
+vote_after_if_else@3:
+    retsub
+
+
+// smart_contracts.dao.contract.Dao.delete_proposal() -> void:
+delete_proposal:
+    // smart_contracts/dao/contract.py:57-58
+    // @arc4.abimethod
+    // def delete_proposal(self) -> None:
+    proto 0 0
+    // smart_contracts/dao/contract.py:59
+    // assert Txn.sender == Global.creator_address
+    txn Sender
+    global CreatorAddress
+    ==
+    assert
+    // smart_contracts/dao/contract.py:61
+    // assert asset.balance(Txn.sender) > 0
+    txn Sender
+    // smart_contracts/dao/contract.py:60
+    // asset = Asset(2033034056)
+    int 2033034056
+    // smart_contracts/dao/contract.py:61
+    // assert asset.balance(Txn.sender) > 0
+    asset_holding_get AssetBalance
+    assert // account opted into asset
+    assert
+    retsub
